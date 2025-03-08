@@ -6,10 +6,10 @@ import os
 import google.generativeai as genai
 from PIL import Image
 
-# Fix API key retrieval
+
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-# Use the latest supported model
+
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 def get_gemini_response(input_text, image):
@@ -40,7 +40,7 @@ if upload_file is not None:
 submit = st.button("Tell me about the image")
 
 if submit:
-    if image is not None:  # Ensure an image is uploaded before calling API
+    if image is not None:  
         response = get_gemini_response(input_text, image)
         st.subheader("The response is:")
         st.write(response)
