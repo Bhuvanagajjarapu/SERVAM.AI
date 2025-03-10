@@ -7,6 +7,12 @@ This project is a scalable chat application powered by a Large Language Model (L
 Documentation Drive Link:
 https://drive.google.com/file/d/1VLRzbnxw_9NWaHUgyG3jOzvP1YI08zZN/view?usp=drivesdk
 
+Flow Link:-
+https://drive.google.com/file/d/1UxSNXPU072EAluDcnzNl6uetX5_vGFqN/view?usp=drivesdk
+
+Video Link:-
+https://drive.google.com/file/d/1VNY6fE5aVtTLBS7och1f1cmlYPzsW0-v/view?usp=drivesdk
+
 Installation & Setup:-
 
 Prerequisites
