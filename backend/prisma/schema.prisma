@@ -8,18 +8,24 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(uuid())
-  email    String @unique
-  password String
+  id          String        @id @default(uuid())
+  email       String        @unique
+  password    String
+  chatHistory ChatHistory[] // One user can have multiple chat histories
 }
-
 
 model ChatHistory {
   id        String   @id @default(uuid())
-  userEmail String
-  messages  Json  // Stores conversation history in JSON format
-  summary   String?  // Stores summarized context
+  userId    String   // Foreign key reference to User
+  messages  Json
+  summary   String?
   createdAt DateTime @default(now())
-  
-  @@index([userEmail])  // Indexing for quick retrieval
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Indexing for quick retrieval
 }
+
+
+
+

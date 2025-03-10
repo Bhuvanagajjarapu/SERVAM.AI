@@ -15,7 +15,7 @@ if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("You must log in to access this page.")
     st.switch_page("app.py")  # ✅ Redirect to login page
 
-st.title("AI-Powered Chat (Text & Image)")
+st.title("AI-Powered Image==>Text")
 
 # ✅ Configure Gemini API
 api_key = os.getenv("GOOGLE_API_KEY")
@@ -27,7 +27,7 @@ genai.configure(api_key=api_key)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 def get_gemini_response(input_text, image=None):
-    """Generates a response using Gemini AI with optional text and image input."""
+    
     contents = [input_text.strip() or "Describe the image."]
     if image:
         contents.append(image)
@@ -49,7 +49,7 @@ if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 
 # 🔹 7:3 Layout for Text Input & Image Upload
-st.header("Gemini LLM - Vision Chat")
+# st.header("Gemini LLM - Vision Chat")
 col1, col2 = st.columns([6, 4])  # 🔹 70% text input, 30% image upload
 
 with col1:

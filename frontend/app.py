@@ -1,23 +1,40 @@
 import streamlit as st
 import requests
 
-# Backend API URL
+# ✅ Backend API URL
 BACKEND_URL = "http://127.0.0.1:8000"
 
-st.set_page_config(page_title="AI Chat Login", layout="wide")
+# ✅ Page Configuration
+st.set_page_config(page_title="WELCOME TO THE AI WORLD", layout="centered")
 
-st.title("Login")
-
-# Initialize session state variables
+# ✅ Initialize session state variables
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# Select Login or Signup
+# ✅ Centered layout with form styling
+st.markdown(
+    """
+    <style>
+    .stApp { display: flex; align-items: center; justify-content: center; height: 100vh; }
+    .login-container { padding: 2rem; border-radius: 10px; background-color: #f9f9f9; 
+                       box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1); width: 400px; text-align: center; }
+    .stTextInput, .stButton { margin-bottom: 10px; }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ✅ Authentication Card
+st.markdown('<div class="login-container">', unsafe_allow_html=True)
+st.title("WELCOME TO AI WORLD")
+
+# ✅ Dropdown for selecting Authentication Mode
 auth_option = st.selectbox("Select an option", ["Login", "Signup"])
 
+email = st.text_input("Enter Email")
+password = st.text_input("Enter Password", type="password")
+
 if auth_option == "Signup":
-    email = st.text_input("Enter Email")
-    password = st.text_input("Enter Password", type="password")
     if st.button("Signup"):
         normalized_email = email.strip().lower()
         response = requests.post(
@@ -33,9 +50,7 @@ if auth_option == "Signup":
         except requests.exceptions.JSONDecodeError:
             st.error("Unexpected response from server. Please try again.")
 
-if auth_option == "Login":
-    email = st.text_input("Enter Email")
-    password = st.text_input("Enter Password", type="password")
+elif auth_option == "Login":
     if st.button("Login"):
         normalized_email = email.strip().lower()
         response = requests.post(
@@ -48,10 +63,12 @@ if auth_option == "Login":
                 st.session_state.logged_in = True
                 st.success("Login successful! Redirecting...")
 
-                # ✅ Directly switch to the chatbot page
+                # ✅ Redirect to chatbot page after login
                 st.switch_page("pages/components.py")
 
             else:
                 st.error(response_data.get("detail", "Invalid credentials"))
         except requests.exceptions.JSONDecodeError:
             st.error("Unexpected response from server. Please try again.")
+
+st.markdown("</div>", unsafe_allow_html=True)

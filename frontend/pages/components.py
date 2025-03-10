@@ -5,9 +5,12 @@ import speech_recognition as sr
 import PyPDF2
 from groq import Groq
 import google.generativeai as genai
+from prisma import Client
+import json
+import asyncio  # ✅ Required for async functions
 
-# ✅ Ensure this is the first Streamlit command
-st.set_page_config(page_title="AI Chat (Text & PDF)", layout="wide")
+# ✅ Initialize Prisma Client
+db = Client()
 
 # ✅ Load environment variables
 load_dotenv()
@@ -15,33 +18,56 @@ load_dotenv()
 # ✅ Redirect if user is not logged in
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("You must log in to access this page.")
-    st.switch_page("app.py")  # ✅ Redirect to login page
+    st.stop()
 
-st.title("🤖 AI Chat - Groq & Gemini")
-st.write("Welcome to the AI-powered chat for text and PDFs.")
+# ✅ Get logged-in user's email
+user_email = st.session_state.get("logged_in_user")
+
+st.title("🤖 AI Chat")
+st.write("Come let me share your work💬")
 
 # ✅ Configure APIs
 groq_api_key = os.getenv("GROQ_API_KEY")
 google_api_key = os.getenv("GOOGLE_API_KEY")
 
-if not groq_api_key:
-    st.error("Missing `GROQ_API_KEY`! Set it in your environment variables.")
-    st.stop()
-if not google_api_key:
-    st.error("Missing `GOOGLE_API_KEY`! Set it in your environment variables.")
+if not groq_api_key or not google_api_key:
+    st.error("Missing API keys! Set them in your environment variables.")
     st.stop()
 
 groq_client = Groq(api_key=groq_api_key)
 genai.configure(api_key=google_api_key)
 gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
-# ✅ Initialize session state variables
+# ✅ Initialize session state for chat history
 if "conversation_history" not in st.session_state:
     st.session_state["conversation_history"] = []
-if "pdf_content" not in st.session_state:
-    st.session_state["pdf_content"] = ""
-if "current_input" not in st.session_state:
-    st.session_state["current_input"] = ""
+
+# ✅ Fetch chat history from database asynchronously
+async def fetch_chat_history():
+    if user_email:
+        user = await db.user.find_unique(
+            where={"email": user_email},
+            include={"chatHistory": True}  # Ensure related chat history is loaded
+        )
+        if user and user.chatHistory:
+            latest_chat = sorted(user.chatHistory, key=lambda x: x.createdAt, reverse=True)[0]
+            st.session_state["conversation_history"] = json.loads(latest_chat.messages)
+
+# ✅ Run the async function in Streamlit
+if "loaded_chat_history" not in st.session_state:
+    asyncio.run(fetch_chat_history())  # Run async database query
+    st.session_state["loaded_chat_history"] = True  # Prevent reloading on every rerun
+
+# ✅ Function: Save chat to NeonDB
+async def save_chat_to_db():
+    if user_email and st.session_state["conversation_history"]:
+        user = await db.user.find_unique(where={"email": user_email})
+        if user:
+            await db.chat_history.create({
+                "userId": user.id,
+                "messages": json.dumps(st.session_state["conversation_history"]),
+                "summary": "",  # Future: Summarize chat
+            })
 
 # ✅ Function: Transcribe voice input
 def record_and_transcribe():
@@ -66,10 +92,12 @@ def extract_text_from_pdf(pdf_file):
 def get_groq_response():
     if not st.session_state["current_input"].strip():
         return "No valid input provided."
-
+    
     messages = st.session_state["conversation_history"][:]
-    if st.session_state["pdf_content"]:
-        messages.append({"role": "system", "content": f"Reference Document: {st.session_state['pdf_content']}"})
+
+    # ✅ Add PDF content if available
+    if "pdf_content" in st.session_state and st.session_state["pdf_content"]:
+        messages.insert(0, {"role": "system", "content": f"The user has provided a document: {st.session_state['pdf_content']}"})
 
     messages.append({"role": "user", "content": st.session_state["current_input"]})
 
@@ -92,8 +120,6 @@ def get_groq_response():
     except Exception as e:
         return f"Error: {str(e)}"
 
-# ✅ UI Section
-st.header("💬 AI Chat - Groq for Text & PDF")
 
 # 🔹 Display chat history
 for message in st.session_state["conversation_history"]:
@@ -128,3 +154,17 @@ if input_text:
     
     response = get_groq_response()
     st.session_state["conversation_history"].append({"role": "assistant", "content": response})
+
+# ✅ Save chat history when user logs out
+if st.button("🚪 Logout"):
+    asyncio.run(save_chat_to_db())  # Save chat to database
+    st.session_state.clear()  # Clear session state
+    st.switch_page("app.py")  # ✅ Redirect to login page
+
+# ✅ Detect if user refreshes
+if "chat_saved" not in st.session_state:
+    st.session_state["chat_saved"] = False
+
+if not st.session_state["chat_saved"]:
+    asyncio.run(save_chat_to_db())  # Save chat history before losing session
+    st.session_state["chat_saved"] = True  # Prevent multiple saves
