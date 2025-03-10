@@ -1,20 +1,12 @@
-import smtplib
-import random
-import os
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prisma import Prisma
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from passlib.hash import bcrypt
-from backend.auth import store_otp, verify_stored_otp
+from dotenv import load_dotenv
+import os
 
 # Load environment variables
 load_dotenv()
-
-SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
 app = FastAPI()
 db = Prisma()
@@ -34,66 +26,45 @@ class SignupRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: str
+    password: str
 
-class OTPRequest(BaseModel):
-    email: str
-    otp: str
-
-# Function to send OTP via Email
-def send_email_otp(email: str, otp: str):
-    subject = "Your OTP Code"
-    message = MIMEMultipart()
-    message["From"] = SMTP_EMAIL
-    message["To"] = email
-    message["Subject"] = subject
-    body = f"Your OTP code is: {otp}. It is valid for 5 minutes."
-    message.attach(MIMEText(body, "plain"))
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(SMTP_EMAIL, SMTP_PASSWORD)
-        server.sendmail(SMTP_EMAIL, email, message.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        print("❌ Email sending failed:", e)
-        return False
-
-# ✅ Signup API
+# Signup API
 @app.post("/signup")
 async def signup(request: SignupRequest):
-    existing_user = await db.user.find_unique(where={"email": request.email.lower()})
+    # Normalize email
+    normalized_email = request.email.strip().lower()
+
+    # Check if user already exists
+    existing_user = await db.user.find_unique(where={"email": normalized_email})
     if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
 
+    # Hash the password
     hashed_password = bcrypt.hash(request.password)
-    await db.user.create(data={"email": request.email.lower(), "password": hashed_password})
+
+    # Create the user
+    await db.user.create(data={"email": normalized_email, "password": hashed_password})
     return {"message": "Signup successful! Please log in."}
 
-# ✅ Send OTP for Login
-@app.post("/send-otp")
-async def send_otp(request: LoginRequest):
-    user = await db.user.find_unique(where={"email": request.email.lower()})
+# Login API
+@app.post("/login")
+async def login(request: LoginRequest):
+    # Normalize email
+    normalized_email = request.email.strip().lower()
+    print(f"Normalized email: {normalized_email}")
+
+    # Fetch user from the database
+    user = await db.user.find_unique(where={"email": normalized_email})
+    print(f"User found: {user}")
+
     if not user:
-        raise HTTPException(status_code=400, detail="Email not registered")
+        raise HTTPException(status_code=404, detail="Email not registered")
 
-    otp = str(random.randint(100000, 999999))
+    # Verify the password
+    print(f"Stored hashed password: {user.password}")
+    print(f"Provided password: {request.password}")
 
-    # Store OTP in the database
-    await store_otp(request.email, otp)
+    if not bcrypt.verify(request.password, user.password):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
 
-    if send_email_otp(request.email, otp):
-        return {"message": "OTP sent to email"}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to send OTP")
-
-# ✅ Verify OTP
-@app.post("/verify-otp")
-async def verify_otp(request: OTPRequest):
-    is_valid, message = await verify_stored_otp(request.email, request.otp)
-
-    if not is_valid:
-        raise HTTPException(status_code=400, detail=message)
-
-    return {"message": message, "email": request.email.lower()}
+    return {"message": "Login successful"}

@@ -13,10 +13,13 @@ model User {
   password String
 }
 
-model OTP {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  otp       String
-  expiresAt DateTime
-}
 
+model ChatHistory {
+  id        String   @id @default(uuid())
+  userEmail String
+  messages  Json  // Stores conversation history in JSON format
+  summary   String?  // Stores summarized context
+  createdAt DateTime @default(now())
+  
+  @@index([userEmail])  // Indexing for quick retrieval
+}
