@@ -20,9 +20,13 @@ Prerequisites
 Ensure you have the following installed:
 
 1)Python 3.9+
+
 2)PostgreSQL (NeonDB)
+
 3)Streamlit
+
 4)FastAPI
+
 5)Prisma
 
 1. Clone the Repository
